@@ -2,6 +2,8 @@
  * Agent.cpp
  * RVO2-3D Library
  *
+ * Modifications Copyright 2016 André Sá de Mello
+ *
  * Copyright 2008 University of North Carolina at Chapel Hill
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,51 +63,55 @@ namespace RVO {
 	};
 
 	/**
-	 * \brief   Solves a one-dimensional linear program on a specified line subject to linear constraints defined by planes and a spherical constraint.
+	 * \brief   Solves a one-dimensional linear program on a specified line subject to linear constraints defined by planes and a bispherical constraint.
 	 * \param   planes        Planes defining the linear constraints.
 	 * \param   planeNo       The plane on which the line lies.
-	 * \param   line          The line on which the 1-d linear program is solved
-	 * \param   radius        The radius of the spherical constraint.
+     * \param   line          The line on which the 1-d linear program is solved
+     * \param   innerRadius   The inner radius of the bispherical constraint.
+     * \param   outerRadius   The outer radius of the bispherical constraint.
 	 * \param   optVelocity   The optimization velocity.
 	 * \param   directionOpt  True if the direction should be optimized.
 	 * \param   result        A reference to the result of the linear program.
 	 * \return  True if successful.
 	 */
-	bool linearProgram1(const std::vector<Plane> &planes, size_t planeNo, const Line &line, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
+	bool linearProgram1(const std::vector<Plane> &planes, size_t planeNo, const Line &line, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
 
 	/**
-	 * \brief   Solves a two-dimensional linear program on a specified plane subject to linear constraints defined by planes and a spherical constraint.
+	 * \brief   Solves a two-dimensional linear program on a specified plane subject to linear constraints defined by planes and a bispherical constraint.
 	 * \param   planes        Planes defining the linear constraints.
-	 * \param   planeNo       The plane on which the 2-d linear program is solved
-	 * \param   radius        The radius of the spherical constraint.
+     * \param   planeNo       The plane on which the 2-d linear program is solved
+     * \param   innerRadius   The inner radius of the bispherical constraint.
+     * \param   outerRadius   The outer radius of the bispherical constraint.
 	 * \param   optVelocity   The optimization velocity.
 	 * \param   directionOpt  True if the direction should be optimized.
 	 * \param   result        A reference to the result of the linear program.
 	 * \return  True if successful.
 	 */
-	bool linearProgram2(const std::vector<Plane> &planes, size_t planeNo, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
+	bool linearProgram2(const std::vector<Plane> &planes, size_t planeNo, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
 
 	/**
-	 * \brief   Solves a three-dimensional linear program subject to linear constraints defined by planes and a spherical constraint.
-	 * \param   planes        Planes defining the linear constraints.
-	 * \param   radius        The radius of the spherical constraint.
+	 * \brief   Solves a three-dimensional linear program subject to linear constraints defined by planes and a bispherical constraint.
+     * \param   planes        Planes defining the linear constraints.
+     * \param   innerRadius   The inner radius of the bispherical constraint.
+	 * \param   outerRadius   The outer radius of the bispherical constraint.
 	 * \param   optVelocity   The optimization velocity.
 	 * \param   directionOpt  True if the direction should be optimized.
 	 * \param   result        A reference to the result of the linear program.
 	 * \return  The number of the plane it fails on, and the number of planes if successful.
 	 */
-	size_t linearProgram3(const std::vector<Plane> &planes, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
+	size_t linearProgram3(const std::vector<Plane> &planes, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result);
 
 	/**
-	 * \brief   Solves a four-dimensional linear program subject to linear constraints defined by planes and a spherical constraint.
-	 * \param   planes     Planes defining the linear constraints.
-	 * \param   beginPlane The plane on which the 3-d linear program failed.
-	 * \param   radius     The radius of the spherical constraint.
-	 * \param   result     A reference to the result of the linear program.
+	 * \brief   Solves a four-dimensional linear program subject to linear constraints defined by planes and a bispherical constraint.
+	 * \param   planes      Planes defining the linear constraints.
+	 * \param   beginPlane  The plane on which the 3-d linear program failed.
+     * \param   innerRadius The inner radius of the bispherical constraint.
+     * \param   outerRadius The outer radius of the bispherical constraint.
+	 * \param   result      A reference to the result of the linear program.
 	 */
-	void linearProgram4(const std::vector<Plane> &planes, size_t beginPlane, float radius, Vector3 &result);
+	void linearProgram4(const std::vector<Plane> &planes, size_t beginPlane, float innerRadius, float outerRadius, Vector3 &result);
 
-	Agent::Agent(RVOSimulator *sim) : sim_(sim), id_(0), maxNeighbors_(0), maxSpeed_(0.0f), neighborDist_(0.0f), radius_(0.0f), timeHorizon_(0.0f) { }
+	Agent::Agent(RVOSimulator *sim) : sim_(sim), id_(0), maxNeighbors_(0), maxSpeed_(0.0f), maxAccel_(0.0f), neighborDist_(0.0f), radius_(0.0f), timeHorizon_(0.0f) { }
 
 	void Agent::computeNeighbors()
 	{
@@ -178,10 +184,14 @@ namespace RVO {
 			orcaPlanes_.push_back(plane);
 		}
 
-		const size_t planeFail = linearProgram3(orcaPlanes_, maxSpeed_, prefVelocity_, false, newVelocity_);
+        const float currSpeed = abs(velocity_);
+        const float speedDiff = maxAccel_ * timeHorizon_;
+        const float innerRadius = std::max(0.0f, currSpeed - speedDiff);
+        const float outerRadius = std::min(maxSpeed_, currSpeed + speedDiff);
+		const size_t planeFail = linearProgram3(orcaPlanes_, innerRadius, outerRadius, prefVelocity_, false, newVelocity_);
 
 		if (planeFail < orcaPlanes_.size()) {
-			linearProgram4(orcaPlanes_, planeFail, maxSpeed_, newVelocity_);
+			linearProgram4(orcaPlanes_, planeFail, innerRadius, outerRadius, newVelocity_);
 		}
 	}
 
@@ -217,10 +227,10 @@ namespace RVO {
 		position_ += velocity_ * sim_->timeStep_;
 	}
 
-	bool linearProgram1(const std::vector<Plane> &planes, size_t planeNo, const Line &line, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
+	bool linearProgram1(const std::vector<Plane> &planes, size_t planeNo, const Line &line, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
 	{
 		const float dotProduct = line.point * line.direction;
-		const float discriminant = sqr(dotProduct) + sqr(radius) - absSq(line.point);
+		const float discriminant = sqr(dotProduct) + sqr(outerRadius) - absSq(line.point);
 
 		if (discriminant < 0.0f) {
 			/* Max speed sphere fully invalidates line. */
@@ -230,7 +240,7 @@ namespace RVO {
 		const float sqrtDiscriminant = std::sqrt(discriminant);
 		float tLeft = -dotProduct - sqrtDiscriminant;
 		float tRight = -dotProduct + sqrtDiscriminant;
-
+ 
 		for (size_t i = 0; i < planeNo; ++i) {
 			const float numerator = (planes[i].point - line.point) * planes[i].normal;
 			const float denominator = line.direction * planes[i].normal;
@@ -285,23 +295,30 @@ namespace RVO {
 			else {
 				result = line.point + t * line.direction;
 			}
+            
+            /* Fail if final result is inside inner sphere. */
+            if (abs(result) < innerRadius) {
+                return false;
+            }
 		}
 
 		return true;
 	}
 
-	bool linearProgram2(const std::vector<Plane> &planes, size_t planeNo, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
+	bool linearProgram2(const std::vector<Plane> &planes, size_t planeNo, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
 	{
 		const float planeDist = planes[planeNo].point * planes[planeNo].normal;
 		const float planeDistSq = sqr(planeDist);
-		const float radiusSq = sqr(radius);
+        const float outerRadiusSq = sqr(outerRadius);
+        const float innerRadiusSq = sqr(innerRadius);
 
-		if (planeDistSq > radiusSq) {
-			/* Max speed sphere fully invalidates plane planeNo. */
+		if (planeDistSq > outerRadiusSq) {
+			/* Outer sphere fully invalidates plane planeNo. */
 			return false;
 		}
 
-		const float planeRadiusSq = radiusSq - planeDistSq;
+		const float planeOuterRadiusSq = outerRadiusSq - planeDistSq;
+        const float planeInnerRadiusSq = innerRadiusSq - planeDistSq;
 
 		const Vector3 planeCenter = planeDist * planes[planeNo].normal;
 
@@ -314,19 +331,27 @@ namespace RVO {
 				result = planeCenter;
 			}
 			else {
-				result = planeCenter + std::sqrt(planeRadiusSq / planeOptVelocityLengthSq) * planeOptVelocity;
+				result = planeCenter + std::sqrt(planeOuterRadiusSq / planeOptVelocityLengthSq) * planeOptVelocity;
 			}
 		}
 		else {
 			/* Project point optVelocity on plane planeNo. */
 			result = optVelocity + ((planes[planeNo].point - optVelocity) * planes[planeNo].normal) * planes[planeNo].normal;
+            
+            const float resultLengthSq = absSq(result);
 
-			/* If outside planeCircle, project on planeCircle. */
-			if (absSq(result) > radiusSq) {
+			/* If outside planeOuterCircle, project on planeOuterCircle. */
+			if (resultLengthSq > outerRadiusSq) {
 				const Vector3 planeResult = result - planeCenter;
 				const float planeResultLengthSq = absSq(planeResult);
-				result = planeCenter + std::sqrt(planeRadiusSq / planeResultLengthSq) * planeResult;
+				result = planeCenter + std::sqrt(planeOuterRadiusSq / planeResultLengthSq) * planeResult;
 			}
+            /* If inside planeInnerCircle, project on planeInnerCircle. */
+            else if (resultLengthSq < innerRadiusSq) {
+                const Vector3 planeResult = result - planeCenter;
+                const float planeResultLengthSq = absSq(planeResult);
+                result = planeCenter + std::sqrt(planeInnerRadiusSq / planeResultLengthSq) * planeResult;
+            }
 		}
 
 		for (size_t i = 0; i < planeNo; ++i) {
@@ -345,7 +370,7 @@ namespace RVO {
 				const Vector3 lineNormal = cross(line.direction, planes[planeNo].normal);
 				line.point = planes[planeNo].point + (((planes[i].point - planes[planeNo].point) * planes[i].normal) / (lineNormal * planes[i].normal)) * lineNormal;
 
-				if (!linearProgram1(planes, i, line, radius, optVelocity, directionOpt, result)) {
+				if (!linearProgram1(planes, i, line, innerRadius, outerRadius, optVelocity, directionOpt, result)) {
 					return false;
 				}
 			}
@@ -354,18 +379,23 @@ namespace RVO {
 		return true;
 	}
 
-	size_t linearProgram3(const std::vector<Plane> &planes, float radius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
+	size_t linearProgram3(const std::vector<Plane> &planes, float innerRadius, float outerRadius, const Vector3 &optVelocity, bool directionOpt, Vector3 &result)
 	{
+        float optSqSpeed = absSq(optVelocity);
 		if (directionOpt) {
 			/* Optimize direction. Note that the optimization velocity is of unit length in this case. */
-			result = optVelocity * radius;
+			result = optVelocity * outerRadius;
 		}
-		else if (absSq(optVelocity) > sqr(radius)) {
-			/* Optimize closest point and outside circle. */
-			result = normalize(optVelocity) * radius;
+		else if (optSqSpeed > sqr(outerRadius)) {
+			/* Optimize closest point and outside outer sphere. */
+			result = normalize(optVelocity) * outerRadius;
 		}
+        else if (optSqSpeed < sqr(innerRadius)) {
+            /* Optimize closest point and inside inner sphere. */
+            result = normalize(optVelocity) * innerRadius;
+        }
 		else {
-			/* Optimize closest point and inside circle. */
+			/* Optimize closest point, inside outside inner sphere and inside outer sphere. */
 			result = optVelocity;
 		}
 
@@ -374,7 +404,7 @@ namespace RVO {
 				/* Result does not satisfy constraint i. Compute new optimal result. */
 				const Vector3 tempResult = result;
 
-				if (!linearProgram2(planes, i, radius, optVelocity, directionOpt, result)) {
+				if (!linearProgram2(planes, i, innerRadius, outerRadius, optVelocity, directionOpt, result)) {
 					result = tempResult;
 					return i;
 				}
@@ -384,7 +414,7 @@ namespace RVO {
 		return planes.size();
 	}
 
-	void linearProgram4(const std::vector<Plane> &planes, size_t beginPlane, float radius, Vector3 &result)
+	void linearProgram4(const std::vector<Plane> &planes, size_t beginPlane, float innerRadius, float outerRadius, Vector3 &result)
 	{
 		float distance = 0.0f;
 
@@ -421,7 +451,7 @@ namespace RVO {
 
 				const Vector3 tempResult = result;
 
-				if (linearProgram3(projPlanes, radius, planes[i].normal, true, result) < projPlanes.size()) {
+				if (linearProgram3(projPlanes, innerRadius, outerRadius, planes[i].normal, true, result) < projPlanes.size()) {
 					/* This should in principle not happen.  The result is by definition already in the feasible region of this linear program. If it fails, it is due to small floating point error, and the current result is kept. */
 					result = tempResult;
 				}

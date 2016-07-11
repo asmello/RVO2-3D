@@ -2,6 +2,8 @@
  * Agent.h
  * RVO2-3D Library
  *
+ * Modifications Copyright 2016 André Sá de Mello
+ *
  * Copyright 2008 University of North Carolina at Chapel Hill
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,6 +90,7 @@ namespace RVO {
 		size_t id_;
 		size_t maxNeighbors_;
 		float maxSpeed_;
+        float maxAccel_;
 		float neighborDist_;
 		float radius_;
 		float timeHorizon_;

@@ -2,6 +2,8 @@
  * RVOSimulator.h
  * RVO2-3D Library
  *
+ * Modifications Copyright 2016 André Sá de Mello
+ *
  * Copyright 2008 University of North Carolina at Chapel Hill
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,10 +93,11 @@ namespace RVO {
 		 * \param   maxNeighbors  The default maximum number of other agents a new agent takes into account in the navigation. The larger this number, the longer the running time of the simulation. If the number is too low, the simulation will not be safe.
 		 * \param   timeHorizon   The default minimum amount of time for which a new agent's velocities that are computed by the simulation are safe with respect to other agents. The larger this number, the sooner an agent will respond to the presence of other agents, but the less freedom the agent has in choosing its velocities. Must be positive.
 		 * \param   radius        The default radius of a new agent. Must be non-negative.
-		 * \param   maxSpeed      The default maximum speed of a new agent. Must be non-negative.
+         * \param   maxSpeed      The default maximum speed of a new agent. Must be non-negative.
+         * \param   maxAccel      The default maximum acceleration of a new agent. Must be non-negative.
 		 * \param   velocity      The default initial three-dimensional linear velocity of a new agent (optional).
 		 */
-		RVO_API RVOSimulator(float timeStep, float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, const Vector3 &velocity = Vector3());
+		RVO_API RVOSimulator(float timeStep, float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, float maxAccel, const Vector3 &velocity = Vector3());
 
 		/**
 		 * \brief   Destroys this simulator instance.
@@ -115,11 +118,12 @@ namespace RVO {
 		 * \param   maxNeighbors  The maximum number of other agents this agent takes into account in the navigation. The larger this number, the longer the running time of the simulation. If the number is too low, the simulation will not be safe.
 		 * \param   timeHorizon   The minimum amount of time for which this agent's velocities that are computed by the simulation are safe with respect to other agents. The larger this number, the sooner this agent will respond to the presence of other agents, but the less freedom this agent has in choosing its velocities. Must be positive.
 		 * \param   radius        The radius of this agent. Must be non-negative.
-		 * \param   maxSpeed      The maximum speed of this agent. Must be non-negative.
+         * \param   maxSpeed      The maximum speed of this agent. Must be non-negative.
+         * \param   maxAccel      The maximum acceleration of this agent. Must be non-negative.
 		 * \param   velocity      The initial three-dimensional linear velocity of this agent (optional).
 		 * \return  The number of the agent.
 		 */
-		RVO_API size_t addAgent(const Vector3 &position, float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, const Vector3 &velocity = Vector3());
+		RVO_API size_t addAgent(const Vector3 &position, float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, float maxAccel, const Vector3 &velocity = Vector3());
 
 		/**
 		 * \brief   Lets the simulator perform a simulation step and updates the three-dimensional position and three-dimensional velocity of each agent.
@@ -147,6 +151,13 @@ namespace RVO {
 		 * \return  The present maximum speed of the agent.
 		 */
 		RVO_API float getAgentMaxSpeed(size_t agentNo) const;
+        
+        /**
+         * \brief   Returns the maximum acceleration of a specified agent.
+         * \param   agentNo  The number of the agent whose maximum acceleration is to be retrieved.
+         * \return  The present maximum acceleration of the agent.
+         */
+        RVO_API float getAgentMaxAccel(size_t agentNo) const;
 
 		/**
 		 * \brief   Returns the maximum neighbor distance of a specified agent.
@@ -244,10 +255,11 @@ namespace RVO {
 		 * \param   maxNeighbors  The default maximum number of other agents a new agent takes into account in the navigation. The larger this number, the longer the running time of the simulation. If the number is too low, the simulation will not be safe.
 		 * \param   timeHorizon   The default minimum amount of time for which a new agent's velocities that are computed by the simulation are safe with respect to other agents. The larger this number, the sooner an agent will respond to the presence of other agents, but the less freedom the agent has in choosing its velocities. Must be positive.
 		 * \param   radius        The default radius of a new agent. Must be non-negative.
-		 * \param   maxSpeed      The default maximum speed of a new agent. Must be non-negative.
+         * \param   maxSpeed      The default maximum speed of a new agent. Must be non-negative.
+         * \param   maxAccel      The default maximum acceleration of a new agent. Must be non-negative.
 		 * \param   velocity      The default initial three-dimensional linear velocity of a new agent (optional).
 		 */
-		RVO_API void setAgentDefaults(float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, const Vector3 &velocity = Vector3());
+		RVO_API void setAgentDefaults(float neighborDist, size_t maxNeighbors, float timeHorizon, float radius, float maxSpeed, float maxAccel, const Vector3 &velocity = Vector3());
 
 		/**
 		 * \brief   Sets the maximum neighbor count of a specified agent.
@@ -262,6 +274,13 @@ namespace RVO {
 		 * \param   maxSpeed  The replacement maximum speed. Must be non-negative.
 		 */
 		RVO_API void setAgentMaxSpeed(size_t agentNo, float maxSpeed);
+        
+        /**
+         * \brief   Sets the maximum acceleration of a specified agent.
+         * \param   agentNo   The number of the agent whose maximum acceleration is to be modified.
+         * \param   maxAccel  The replacement maximum acceleration. Must be non-negative.
+         */
+        RVO_API void setAgentMaxAccel(size_t agentNo, float maxAccel);
 
 		/**
 		 * \brief   Sets the maximum neighbor distance of a specified agent.
